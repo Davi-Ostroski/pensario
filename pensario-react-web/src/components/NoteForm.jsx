@@ -162,11 +162,12 @@ const NoteForm = ({ note, onBack, onSave }) => {
 
             <div className="space-y-2">
               <Label htmlFor="category">Categoria</Label>
-              <Select onValueChange={setCategory} value={category}>
-                <SelectTrigger>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger id="category">
                   <SelectValue placeholder="Selecione uma categoria" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="">Nenhuma</SelectItem>
                   {categories.map((cat) => (
                     <SelectItem key={cat} value={cat}>
                       {cat}

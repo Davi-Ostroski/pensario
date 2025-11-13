@@ -33,6 +33,11 @@ class ApiService {
       config.headers.Authorization = `Bearer ${this.token}`;
     }
 
+    // Se o corpo for FormData, o navegador definirá o Content-Type automaticamente
+    if (config.body instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
+
     try {
       const response = await fetch(url, config);
       const data = await response.json();
@@ -139,10 +144,6 @@ class ApiService {
 
     return this.request('/attachments/upload', {
       method: 'POST',
-      headers: {
-        // Não definir Content-Type para FormData
-        Authorization: this.token ? `Bearer ${this.token}` : undefined,
-      },
       body: formData,
     });
   }
@@ -159,6 +160,14 @@ class ApiService {
 
   getAttachmentDownloadUrl(id) {
     return `${API_BASE_URL}/attachments/download/${id}`;
+  }
+
+  // Transcrição de áudio
+  async transcribeAudio(audioData) {
+    return this.request('/attachments/transcribe', {
+      method: 'POST',
+      body: audioData,
+    });
   }
 
   // Histórico de revisões

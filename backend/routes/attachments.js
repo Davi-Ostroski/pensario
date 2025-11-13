@@ -232,5 +232,24 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// Transcrever áudio (rota placeholder)
+// Recebe um campo 'audio' via FormData e, por enquanto, retorna 501 (não implementado)
+router.post('/transcribe', upload.single('audio'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'Arquivo de áudio é obrigatório' });
+    }
+
+    // Aqui poderia entrar a integração com um serviço de transcrição (OpenAI, Whisper, Google Speech-to-Text, etc.)
+    // Por enquanto, retornamos uma resposta informando que a funcionalidade ainda não foi implementada.
+    console.warn('Recebido arquivo para transcrição:', req.file.path);
+
+    return res.status(501).json({ message: 'Transcrição não implementada no servidor' });
+  } catch (error) {
+    console.error('Erro ao transcrever áudio:', error);
+    return res.status(500).json({ message: 'Erro interno do servidor' });
+  }
+});
+
 module.exports = router;
 

@@ -1,12 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowLeft, Save, Loader2 } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, Mic } from 'lucide-react';
 import apiService from '../services/api';
+
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const NoteForm = ({ note, onBack, onSave }) => {
   const [title, setTitle] = useState('');
@@ -15,8 +23,13 @@ const NoteForm = ({ note, onBack, onSave }) => {
   const [consultationDate, setConsultationDate] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isRecording, setIsRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
 
   const isEditing = !!note;
+  const categories = ['Trabalho', 'Pessoal', 'Estudos', 'Projetos', 'Ideias', 'Lembretes'];
 
   useEffect(() => {
     if (note) {
@@ -35,6 +48,41 @@ const NoteForm = ({ note, onBack, onSave }) => {
     }
   }, [note]);
 
+  const handleRecord = async () => {
+    if (isRecording) {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    } else {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorderRef.current = new MediaRecorder(stream);
+        mediaRecorderRef.current.ondataavailable = (event) => {
+          audioChunksRef.current.push(event.data);
+        };
+        mediaRecorderRef.current.onstop = async () => {
+          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          audioChunksRef.current = [];
+          setTranscribing(true);
+          try {
+            const formData = new FormData();
+            formData.append('audio', audioBlob);
+            const response = await apiService.transcribeAudio(formData);
+            setContent((prevContent) => `${prevContent}${prevContent ? ' ' : ''}${response.transcription}`);
+          } catch (error) {
+            setError('Erro ao transcrever o áudio.');
+          } finally {
+            setTranscribing(false);
+            stream.getTracks().forEach(track => track.stop());
+          }
+        };
+        mediaRecorderRef.current.start();
+        setIsRecording(true);
+      } catch (error) {
+        setError('Não foi possível acessar o microfone. Verifique as permissões do navegador.');
+      }
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -50,7 +98,7 @@ const NoteForm = ({ note, onBack, onSave }) => {
       const noteData = {
         title: title.trim(),
         content: content.trim(),
-        category: category.trim() || null,
+        category: category || null,
         consultation_date: consultationDate || null,
       };
 
@@ -114,13 +162,18 @@ const NoteForm = ({ note, onBack, onSave }) => {
 
             <div className="space-y-2">
               <Label htmlFor="category">Categoria</Label>
-              <Input
-                id="category"
-                type="text"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                placeholder="Ex: Trabalho, Pessoal, Estudos..."
-              />
+              <Select onValueChange={setCategory} value={category}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione uma categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
@@ -134,14 +187,24 @@ const NoteForm = ({ note, onBack, onSave }) => {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="content">Conteúdo</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="content">Conteúdo</Label>
+                <Button type="button" variant="ghost" size="icon" onClick={handleRecord} disabled={transcribing}>
+                  {isRecording ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Mic className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
               <Textarea
                 id="content"
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                placeholder="Digite o conteúdo da sua nota..."
+                placeholder="Digite o conteúdo da sua nota ou grave um áudio..."
                 rows={10}
               />
+              {transcribing && <p className="text-sm text-muted-foreground">Transcrevendo áudio...</p>}
             </div>
 
             <div className="flex space-x-4">
